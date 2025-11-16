@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Adventure Jump - Platform Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #1a1a2e;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+      color: #fff;
+    }
+
+    #gameCanvas {
+      display: block;
+      margin: 0 auto;
+      background: #000;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    #ui {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(5px);
+      pointer-events: all;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 10;
+    }
+
+    .screen.active {
+      opacity: 1;
+    }
+
+    .screen.hidden {
+      display: none;
+    }
+
+    .panel {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      max-width: 600px;
+      text-align: center;
+    }
+
+    .panel h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+      text-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3);
+      letter-spacing: 2px;
+    }
+
+    .panel h2 {
+      font-size: 36px;
+      margin-bottom: 20px;
+    }
+
+    .panel p {
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 30px;
+      opacity: 0.9;
+    }
+
+    .btn {
+      background: #fff;
+      color: #667eea;
+      border: none;
+      padding: 15px 40px;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 50px;
+      cursor: pointer;
+      margin: 10px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      font-family: 'Courier New', monospace;
+      pointer-events: all;
+    }
+
+    .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn:active {
+      transform: translateY(-1px);
+    }
+
+    .btn.secondary {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
+    #hud {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      font-size: 20px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .hud-item {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px 20px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #levelSelect {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 20px;
+      margin: 30px 0;
+    }
+
+    .level-card {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 15px;
+      cursor: pointer;
+      transition: all 0.3s;
+      border: 3px solid transparent;
+    }
+
+    .level-card:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.05);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .level-card h3 {
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+
+    .level-card .stars {
+      font-size: 24px;
+      margin: 10px 0;
+    }
+
+    .level-card.locked {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #mobileControls {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      display: none;
+      justify-content: space-between;
+      z-index: 5;
+      pointer-events: all;
+    }
+
+    .control-group {
+      display: flex;
+      gap: 15px;
+    }
+
+    .control-btn {
+      width: 70px;
+      height: 70px;
+      background: rgba(255, 255, 255, 0.3);
+      border: 3px solid rgba(255, 255, 255, 0.6);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: #fff;
+      font-weight: bold;
+      user-select: none;
+      touch-action: none;
+      backdrop-filter: blur(10px);
+    }
+
+    .control-btn:active {
+      background: rgba(255, 255, 255, 0.5);
+      transform: scale(0.95);
+    }
+
+    .control-btn.rect {
+      border-radius: 15px;
+    }
+
+    @media (max-width: 768px) {
+      #mobileControls {
+        display: flex;
+      }
+
+      .panel {
+        padding: 20px;
+        max-width: 90%;
+      }
+
+      .panel h1 {
+        font-size: 32px;
+      }
+
+      .btn {
+        padding: 12px 30px;
+        font-size: 16px;
+      }
+    }
+
+    #stats {
+      text-align: center;
+      margin: 20px 0;
+      font-size: 18px;
+      line-height: 1.8;
+    }
+
+    .stat-row {
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="ui">
+    <!-- HUD -->
+    <div id="hud" style="display: none;">
+      <div class="hud-item">
+        <span>❤️ <span id="lives">3</span></span>
+      </div>
+      <div class="hud-item">
+        <span>🪙 <span id="coins">0</span></span>
+      </div>
+      <div class="hud-item">
+        <span>⏱️ <span id="timer">0:00</span></span>
+      </div>
+    </div>
+
+    <!-- Title Screen -->
+    <div id="titleScreen" class="screen active">
+      <div class="panel">
+        <h1>🎮 ADVENTURE JUMP</h1>
+        <p>
+          A classic platformer adventure!<br>
+          Jump, collect coins, and defeat enemies!<br><br>
+          <strong>Controls:</strong><br>
+          ← → to move, SPACE to jump<br>
+          P to pause, R to restart
+        </p>
+        <button class="btn" onclick="showLevelSelect()">START GAME</button>
+      </div>
+    </div>
+
+    <!-- Level Select Screen -->
+    <div id="levelSelectScreen" class="screen hidden">
+      <div class="panel">
+        <h2>SELECT LEVEL</h2>
+        <div id="levelSelect"></div>
+        <button class="btn secondary" onclick="showTitle()">BACK</button>
+      </div>
+    </div>
+
+    <!-- Pause Screen -->
+    <div id="pauseScreen" class="screen hidden">
+      <div class="panel">
+        <h2>PAUSED</h2>
+        <button class="btn" onclick="resumeGame()">RESUME</button>
+        <button class="btn secondary" onclick="restartLevel()">RESTART</button>
+        <button class="btn secondary" onclick="quitToMenu()">QUIT TO MENU</button>
+      </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen" class="screen hidden">
+      <div class="panel">
+        <h2>GAME OVER</h2>
+        <p>You ran out of lives!</p>
+        <button class="btn" onclick="restartLevel()">TRY AGAIN</button>
+        <button class="btn secondary" onclick="showLevelSelect()">LEVEL SELECT</button>
+      </div>
+    </div>
+
+    <!-- Level Complete Screen -->
+    <div id="levelCompleteScreen" class="screen hidden">
+      <div class="panel">
+        <h2>LEVEL COMPLETE!</h2>
+        <div id="stats"></div>
+        <button class="btn" onclick="nextLevel()">NEXT LEVEL</button>
+        <button class="btn secondary" onclick="showLevelSelect()">LEVEL SELECT</button>
+      </div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="mobileControls">
+      <div class="control-group">
+        <div class="control-btn rect" id="btnLeft">←</div>
+        <div class="control-btn rect" id="btnRight">→</div>
+      </div>
+      <div class="control-group">
+        <div class="control-btn" id="btnJump">↑</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== GAME CONFIGURATION =====
+    const CONFIG = {
+      CANVAS_WIDTH: 800,
+      CANVAS_HEIGHT: 600,
+      TILE_SIZE: 32,
+      GRAVITY: 1600,
+      PLAYER_SPEED: 200,
+      PLAYER_JUMP: 520,
+      PLAYER_WALL_JUMP_X: 300,
+      PLAYER_WALL_JUMP_Y: 500,
+      COYOTE_TIME: 0.1,
+      JUMP_BUFFER: 0.15,
+      MAX_FALL_SPEED: 800,
+      FRICTION: 0.85,
+      AIR_RESISTANCE: 0.95
+    };
+
+    // ===== GLOBAL GAME STATE =====
+    let canvas, ctx;
+    let gameState = 'title'; // title, playing, paused, gameover, levelcomplete
+    let currentLevel = 0;
+    let player, camera, entities, particles;
+    let keys = {};
+    let touchControls = { left: false, right: false, jump: false };
+    let lastTime = 0;
+    let gameStats = {
+      lives: 3,
+      coins: 0,
+      time: 0,
+      levelScores: []
+    };
+
+    // ===== SPRITE ATLAS =====
+    let spriteAtlas;
+
+    function createSpriteAtlas() {
+      const atlas = document.createElement('canvas');
+      atlas.width = 512;
+      atlas.height = 512;
+      const c = atlas.getContext('2d');
+
+      // Player sprites (32x32)
+      // Idle
+      c.fillStyle = '#4CAF50';
+      c.fillRect(0, 0, 20, 28);
+      c.fillStyle = '#FFD700';
+      c.beginPath();
+      c.arc(10, 8, 8, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#000';
+      c.fillRect(6, 6, 2, 2);
+      c.fillRect(12, 6, 2, 2);
+      c.fillRect(7, 10, 6, 1);
+
+      // Run 1
+      c.save();
+      c.translate(40, 0);
+      c.fillStyle = '#4CAF50';
+      c.fillRect(0, 0, 20, 28);
+      c.fillStyle = '#FFD700';
+      c.beginPath();
+      c.arc(10, 8, 8, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#000';
+      c.fillRect(6, 6, 2, 2);
+      c.fillRect(12, 6, 2, 2);
+      c.restore();
+
+      // Run 2
+      c.save();
+      c.translate(80, 0);
+      c.fillStyle = '#4CAF50';
+      c.fillRect(2, 0, 20, 28);
+      c.fillStyle = '#FFD700';
+      c.beginPath();
+      c.arc(12, 8, 8, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#000';
+      c.fillRect(8, 6, 2, 2);
+      c.fillRect(14, 6, 2, 2);
+      c.restore();
+
+      // Jump
+      c.save();
+      c.translate(120, 0);
+      c.fillStyle = '#4CAF50';
+      c.fillRect(0, 4, 20, 24);
+      c.fillStyle = '#FFD700';
+      c.beginPath();
+      c.arc(10, 8, 8, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#000';
+      c.fillRect(6, 6, 2, 2);
+      c.fillRect(12, 6, 2, 2);
+      c.fillRect(6, 10, 8, 1);
+      c.restore();
+
+      // Coin (16x16)
+      c.save();
+      c.translate(0, 50);
+      const grad = c.createRadialGradient(8, 8, 2, 8, 8, 8);
+      grad.addColorStop(0, '#FFD700');
+      grad.addColorStop(0.7, '#FFA500');
+      grad.addColorStop(1, '#FF8C00');
+      c.fillStyle = grad;
+      c.beginPath();
+      c.arc(8, 8, 7, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#FF8C00';
+      c.font = 'bold 12px Arial';
+      c.fillText('$', 4, 12);
+      c.restore();
+
+      // Enemy 1 - Patroller (32x24)
+      c.save();
+      c.translate(0, 80);
+      c.fillStyle = '#E91E63';
+      c.fillRect(0, 8, 32, 16);
+      c.fillStyle = '#C2185B';
+      c.fillRect(4, 0, 8, 8);
+      c.fillRect(20, 0, 8, 8);
+      c.fillStyle = '#fff';
+      c.fillRect(6, 2, 3, 3);
+      c.fillRect(22, 2, 3, 3);
+      c.fillStyle = '#000';
+      c.fillRect(7, 3, 1, 1);
+      c.fillRect(23, 3, 1, 1);
+      c.restore();
+
+      // Enemy 2 - Flyer (24x24)
+      c.save();
+      c.translate(50, 80);
+      c.fillStyle = '#9C27B0';
+      c.beginPath();
+      c.ellipse(12, 12, 10, 8, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = 'rgba(156, 39, 176, 0.5)';
+      c.beginPath();
+      c.ellipse(4, 8, 8, 4, -0.3, 0, Math.PI * 2);
+      c.fill();
+      c.beginPath();
+      c.ellipse(20, 8, 8, 4, 0.3, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#fff';
+      c.fillRect(8, 10, 3, 3);
+      c.fillRect(13, 10, 3, 3);
+      c.restore();
+
+      // Spike (32x16)
+      c.save();
+      c.translate(0, 120);
+      c.fillStyle = '#666';
+      for (let i = 0; i < 4; i++) {
+        c.beginPath();
+        c.moveTo(i * 8, 16);
+        c.lineTo(i * 8 + 4, 0);
+        c.lineTo(i * 8 + 8, 16);
+        c.fill();
+      }
+      c.restore();
+
+      // Checkpoint flag (16x32) - inactive
+      c.save();
+      c.translate(100, 80);
+      c.fillStyle = '#666';
+      c.fillRect(2, 0, 3, 32);
+      c.fillStyle = '#888';
+      c.beginPath();
+      c.moveTo(5, 0);
+      c.lineTo(15, 5);
+      c.lineTo(5, 10);
+      c.fill();
+      c.restore();
+
+      // Checkpoint flag - active
+      c.save();
+      c.translate(120, 80);
+      c.fillStyle = '#666';
+      c.fillRect(2, 0, 3, 32);
+      c.fillStyle = '#4CAF50';
+      c.beginPath();
+      c.moveTo(5, 0);
+      c.lineTo(15, 5);
+      c.lineTo(5, 10);
+      c.fill();
+      c.restore();
+
+      // Goal flag (32x48)
+      c.save();
+      c.translate(150, 60);
+      c.fillStyle = '#333';
+      c.fillRect(2, 0, 4, 48);
+      c.fillStyle = '#FFD700';
+      c.beginPath();
+      c.moveTo(6, 0);
+      c.lineTo(32, 10);
+      c.lineTo(6, 20);
+      c.fill();
+      c.fillStyle = '#FFA500';
+      c.font = 'bold 14px Arial';
+      c.fillText('★', 12, 14);
+      c.restore();
+
+      // Platform tile (32x32)
+      c.save();
+      c.translate(0, 160);
+      c.fillStyle = '#8B4513';
+      c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#A0522D';
+      c.fillRect(1, 1, 30, 30);
+      c.fillStyle = '#CD853F';
+      c.fillRect(2, 2, 28, 10);
+      c.restore();
+
+      // Grass tile (32x32)
+      c.save();
+      c.translate(40, 160);
+      c.fillStyle = '#228B22';
+      c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#32CD32';
+      c.fillRect(0, 0, 32, 8);
+      // Grass blades
+      c.fillStyle = '#228B22';
+      for (let i = 0; i < 8; i++) {
+        c.fillRect(i * 4, 0, 2, 6);
+      }
+      c.restore();
+
+      // Stone tile (32x32)
+      c.save();
+      c.translate(80, 160);
+      c.fillStyle = '#696969';
+      c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#808080';
+      c.fillRect(1, 1, 30, 30);
+      c.fillStyle = '#A9A9A9';
+      c.fillRect(2, 2, 10, 10);
+      c.fillRect(14, 14, 8, 8);
+      c.fillRect(24, 4, 6, 6);
+      c.restore();
+
+      return atlas;
+    }
+
+    // ===== ENTITY CLASSES =====
+    class Entity {
+      constructor(x, y, w, h) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        this.vx = 0;
+        this.vy = 0;
+        this.dead = false;
+      }
+
+      update(dt) {}
+      render() {}
+
+      collidesWith(other) {
+        return this.x < other.x + other.w &&
+               this.x + this.w > other.x &&
+               this.y < other.y + other.h &&
+               this.y + this.h > other.y;
+      }
+    }
+
+    class Player extends Entity {
+      constructor(x, y) {
+        super(x, y, 20, 28);
+        this.onGround = false;
+        this.onWall = 0; // -1 left, 1 right, 0 none
+        this.facing = 1;
+        this.coyoteTime = 0;
+        this.jumpBuffer = 0;
+        this.canDoubleJump = true;
+        this.anim = 'idle';
+        this.animFrame = 0;
+        this.animTimer = 0;
+        this.invincible = 0;
+      }
+
+      update(dt) {
+        const wasOnGround = this.onGround;
+
+        // Input
+        const moveLeft = keys['ArrowLeft'] || keys['a'] || keys['A'] || touchControls.left;
+        const moveRight = keys['ArrowRight'] || keys['d'] || keys['D'] || touchControls.right;
+        const jumpPressed = keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W'] || touchControls.jump;
+
+        // Horizontal movement
+        if (moveLeft) {
+          this.vx -= CONFIG.PLAYER_SPEED * 4 * dt;
+          this.facing = -1;
+        }
+        if (moveRight) {
+          this.vx += CONFIG.PLAYER_SPEED * 4 * dt;
+          this.facing = 1;
+        }
+
+        // Apply friction
+        if (this.onGround) {
+          this.vx *= CONFIG.FRICTION;
+        } else {
+          this.vx *= CONFIG.AIR_RESISTANCE;
+        }
+
+        // Clamp speed
+        const maxSpeed = CONFIG.PLAYER_SPEED;
+        this.vx = Math.max(-maxSpeed, Math.min(maxSpeed, this.vx));
+
+        // Gravity
+        this.vy += CONFIG.GRAVITY * dt;
+        this.vy = Math.min(this.vy, CONFIG.MAX_FALL_SPEED);
+
+        // Coyote time
+        if (this.onGround) {
+          this.coyoteTime = CONFIG.COYOTE_TIME;
+          this.canDoubleJump = true;
+        } else {
+          this.coyoteTime -= dt;
+        }
+
+        // Jump buffer
+        if (jumpPressed && !this.jumpHeld) {
+          this.jumpBuffer = CONFIG.JUMP_BUFFER;
+          this.jumpHeld = true;
+        }
+        if (!jumpPressed) {
+          this.jumpHeld = false;
+        }
+        this.jumpBuffer -= dt;
+
+        // Jump
+        if (this.jumpBuffer > 0) {
+          if (this.coyoteTime > 0) {
+            this.vy = -CONFIG.PLAYER_JUMP;
+            this.jumpBuffer = 0;
+            this.coyoteTime = 0;
+            playSound('jump');
+            createParticles(this.x + this.w / 2, this.y + this.h, 5, '#fff');
+          } else if (this.onWall !== 0) {
+            // Wall jump
+            this.vy = -CONFIG.PLAYER_WALL_JUMP_Y;
+            this.vx = -this.onWall * CONFIG.PLAYER_WALL_JUMP_X;
+            this.jumpBuffer = 0;
+            this.facing = -this.onWall;
+            playSound('jump');
+            createParticles(this.x + this.w / 2, this.y + this.h / 2, 8, '#fff');
+          }
+        }
+
+        // Variable jump height
+        if (!jumpPressed && this.vy < -100) {
+          this.vy *= 0.5;
+        }
+
+        // Move
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        // Collision detection
+        this.onGround = false;
+        this.onWall = 0;
+
+        const level = LEVELS[currentLevel];
+        const tiles = level.tiles;
+
+        // Check tile collisions
+        for (let row = 0; row < tiles.length; row++) {
+          for (let col = 0; col < tiles[row].length; col++) {
+            if (tiles[row][col] > 0) {
+              const tile = {
+                x: col * CONFIG.TILE_SIZE,
+                y: row * CONFIG.TILE_SIZE,
+                w: CONFIG.TILE_SIZE,
+                h: CONFIG.TILE_SIZE
+              };
+
+              if (this.collidesWith(tile)) {
+                // Determine collision side
+                const overlapLeft = (this.x + this.w) - tile.x;
+                const overlapRight = (tile.x + tile.w) - this.x;
+                const overlapTop = (this.y + this.h) - tile.y;
+                const overlapBottom = (tile.y + tile.h) - this.y;
+
+                const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+
+                if (minOverlap === overlapTop && this.vy > 0) {
+                  this.y = tile.y - this.h;
+                  this.vy = 0;
+                  this.onGround = true;
+                  if (!wasOnGround) {
+                    playSound('land');
+                    createParticles(this.x + this.w / 2, this.y + this.h, 3, '#888');
+                  }
+                } else if (minOverlap === overlapBottom && this.vy < 0) {
+                  this.y = tile.y + tile.h;
+                  this.vy = 0;
+                } else if (minOverlap === overlapLeft && this.vx > 0) {
+                  this.x = tile.x - this.w;
+                  this.vx = 0;
+                  if (!this.onGround && this.vy > 0) this.onWall = 1;
+                } else if (minOverlap === overlapRight && this.vx < 0) {
+                  this.x = tile.x + tile.w;
+                  this.vx = 0;
+                  if (!this.onGround && this.vy > 0) this.onWall = -1;
+                }
+              }
+            }
+          }
+        }
+
+        // Animation
+        this.animTimer += dt;
+        if (this.animTimer > 0.1) {
+          this.animTimer = 0;
+          this.animFrame++;
+        }
+
+        if (!this.onGround) {
+          this.anim = 'jump';
+        } else if (Math.abs(this.vx) > 10) {
+          this.anim = 'run';
+        } else {
+          this.anim = 'idle';
+        }
+
+        // Invincibility
+        if (this.invincible > 0) {
+          this.invincible -= dt;
+        }
+
+        // Death by falling
+        if (this.y > level.tiles.length * CONFIG.TILE_SIZE + 100) {
+          this.die();
+        }
+      }
+
+      render() {
+        if (this.invincible > 0 && Math.floor(this.invincible * 10) % 2 === 0) {
+          return; // Flashing effect
+        }
+
+        ctx.save();
+        ctx.translate(this.x + this.w / 2, this.y);
+        if (this.facing < 0) ctx.scale(-1, 1);
+
+        let sx = 0;
+        if (this.anim === 'run') {
+          sx = (this.animFrame % 2) * 40 + 40;
+        } else if (this.anim === 'jump') {
+          sx = 120;
+        }
+
+        ctx.drawImage(spriteAtlas, sx, 0, 32, 32, -16, 0, 32, 32);
+        ctx.restore();
+      }
+
+      die() {
+        playSound('death');
+        createParticles(this.x + this.w / 2, this.y + this.h / 2, 20, '#4CAF50');
+        gameStats.lives--;
+
+        if (gameStats.lives <= 0) {
+          gameOver();
+        } else {
+          resetLevel();
+        }
+      }
+
+      hit() {
+        if (this.invincible > 0) return;
+        this.die();
+      }
+    }
+
+    class Coin extends Entity {
+      constructor(x, y) {
+        super(x, y, 16, 16);
+        this.collected = false;
+        this.bobTimer = Math.random() * Math.PI * 2;
+      }
+
+      update(dt) {
+        this.bobTimer += dt * 3;
+      }
+
+      render() {
+        if (this.collected) return;
+        const bob = Math.sin(this.bobTimer) * 4;
+        ctx.drawImage(spriteAtlas, 0, 50, 16, 16, this.x, this.y + bob, 16, 16);
+      }
+    }
+
+    class Enemy extends Entity {
+      constructor(x, y, w, h, type) {
+        super(x, y, w, h);
+        this.type = type; // 'patrol' or 'fly'
+        this.startX = x;
+        this.startY = y;
+        this.moveTimer = 0;
+        this.direction = 1;
+      }
+
+      update(dt) {
+        if (this.type === 'patrol') {
+          this.vx = this.direction * 60;
+          this.x += this.vx * dt;
+
+          // Turn around at edges or after distance
+          if (Math.abs(this.x - this.startX) > 100) {
+            this.direction *= -1;
+          }
+        } else if (this.type === 'fly') {
+          this.moveTimer += dt;
+          this.x = this.startX + Math.sin(this.moveTimer * 2) * 80;
+          this.y = this.startY + Math.cos(this.moveTimer * 1.5) * 60;
+        }
+      }
+
+      render() {
+        if (this.type === 'patrol') {
+          ctx.save();
+          if (this.direction < 0) {
+            ctx.translate(this.x + this.w, this.y);
+            ctx.scale(-1, 1);
+            ctx.drawImage(spriteAtlas, 0, 80, 32, 24, 0, 0, 32, 24);
+          } else {
+            ctx.drawImage(spriteAtlas, 0, 80, 32, 24, this.x, this.y, 32, 24);
+          }
+          ctx.restore();
+        } else {
+          ctx.drawImage(spriteAtlas, 50, 80, 24, 24, this.x, this.y, 24, 24);
+        }
+      }
+    }
+
+    class Spike extends Entity {
+      constructor(x, y) {
+        super(x, y, 32, 16);
+      }
+
+      render() {
+        ctx.drawImage(spriteAtlas, 0, 120, 32, 16, this.x, this.y, 32, 16);
+      }
+    }
+
+    class Checkpoint extends Entity {
+      constructor(x, y) {
+        super(x, y, 16, 32);
+        this.activated = false;
+      }
+
+      render() {
+        const sx = this.activated ? 120 : 100;
+        ctx.drawImage(spriteAtlas, sx, 80, 16, 32, this.x, this.y, 16, 32);
+      }
+    }
+
+    class Goal extends Entity {
+      constructor(x, y) {
+        super(x, y, 32, 48);
+      }
+
+      render() {
+        ctx.drawImage(spriteAtlas, 150, 60, 32, 48, this.x, this.y, 32, 48);
+      }
+    }
+
+    // ===== PARTICLE SYSTEM =====
+    class Particle {
+      constructor(x, y, vx, vy, color, life) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.color = color;
+        this.life = life;
+        this.maxLife = life;
+      }
+
+      update(dt) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.vy += CONFIG.GRAVITY * dt * 0.3;
+        this.life -= dt;
+      }
+
+      render() {
+        const alpha = this.life / this.maxLife;
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha = alpha;
+        ctx.fillRect(this.x - 2, this.y - 2, 4, 4);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    function createParticles(x, y, count, color) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 150 + 50;
+        particles.push(new Particle(
+          x,
+          y,
+          Math.cos(angle) * speed,
+          Math.sin(angle) * speed - 100,
+          color,
+          0.5 + Math.random() * 0.5
+        ));
+      }
+    }
+
+    // ===== CAMERA =====
+    class Camera {
+      constructor() {
+        this.x = 0;
+        this.y = 0;
+      }
+
+      update() {
+        if (!player) return;
+
+        // Follow player with smooth interpolation
+        const targetX = player.x + player.w / 2 - CONFIG.CANVAS_WIDTH / 2;
+        const targetY = player.y + player.h / 2 - CONFIG.CANVAS_HEIGHT / 2;
+
+        this.x += (targetX - this.x) * 0.1;
+        this.y += (targetY - this.y) * 0.1;
+
+        // Clamp to level bounds
+        const level = LEVELS[currentLevel];
+        const maxX = level.tiles[0].length * CONFIG.TILE_SIZE - CONFIG.CANVAS_WIDTH;
+        const maxY = level.tiles.length * CONFIG.TILE_SIZE - CONFIG.CANVAS_HEIGHT;
+
+        this.x = Math.max(0, Math.min(this.x, maxX));
+        this.y = Math.max(0, Math.min(this.y, maxY));
+      }
+    }
+
+    // ===== AUDIO SYSTEM =====
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSound(type) {
+      const now = audioContext.currentTime;
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+
+      switch (type) {
+        case 'jump':
+          osc.frequency.value = 400;
+          osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+          osc.start(now);
+          osc.stop(now + 0.1);
+          break;
+        case 'land':
+          osc.type = 'square';
+          osc.frequency.value = 100;
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+          osc.start(now);
+          osc.stop(now + 0.05);
+          break;
+        case 'coin':
+          osc.frequency.value = 800;
+          osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+          osc.start(now);
+          osc.stop(now + 0.15);
+          break;
+        case 'death':
+          osc.type = 'sawtooth';
+          osc.frequency.value = 400;
+          osc.frequency.exponentialRampToValueAtTime(50, now + 0.5);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+          osc.start(now);
+          osc.stop(now + 0.5);
+          break;
+        case 'checkpoint':
+          osc.frequency.value = 600;
+          osc.frequency.exponentialRampToValueAtTime(900, now + 0.2);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+          osc.start(now);
+          osc.stop(now + 0.2);
+          break;
+        case 'goal':
+          osc.frequency.value = 800;
+          osc.frequency.exponentialRampToValueAtTime(1600, now + 0.3);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+          osc.start(now);
+          osc.stop(now + 0.3);
+          break;
+      }
+    }
+
+    // ===== LEVEL DEFINITIONS =====
+    const LEVELS = [
+      {
+        name: "Green Hills",
+        tiles: [
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0,0,0,0],
+          [2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,0,0,0,0],
+          [0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2],
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [2,2,2,2,0,0,0,0,0,0,2,2,2,0,0,0,0,2,2,2,2,0,0,0,0],
+          [1,1,1,1,0,0,0,0,0,0,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0],
+          [1,1,1,1,0,0,0,0,0,0,1,1,1,0,0,0,0,1,1,1,1,0,0,0,1],
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1],
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ],
+        entities: [
+          { type: 'coin', x: 128, y: 160 },
+          { type: 'coin', x: 256, y: 192 },
+          { type: 'coin', x: 400, y: 160 },
+          { type: 'coin', x: 424, y: 160 },
+          { type: 'coin', x: 600, y: 160 },
+          { type: 'enemy', subtype: 'patrol', x: 350, y: 296 },
+          { type: 'checkpoint', x: 400, y: 288 },
+          { type: 'goal', x: 730, y: 272 }
+        ],
+        spawn: { x: 32, y: 288 },
+        bg: '#87CEEB'
+      },
+      {
+        name: "Cave Depths",
+        tiles: [
+          [3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,3,3,0,0,0,0,0,0,0,0,3,3,3,0,0,0,0,0,0,0,3,3,3,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,3,3,3,0,0,0,0,0,0,0,3,3,3,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,3,3,3,0,0,0,0,0,0,0,3,3,0,0,0,0,0,3,3,3,3,0,0,3],
+          [3,3,3,3,0,0,0,0,0,0,0,3,3,0,0,0,0,0,3,3,3,3,0,0,3],
+          [3,3,3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,3,3,3,3,3,3,3],
+          [3,3,3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,3,3,3,3,3,3,3],
+          [3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]
+        ],
+        entities: [
+          { type: 'coin', x: 96, y: 128 },
+          { type: 'coin', x: 384, y: 144 },
+          { type: 'coin', x: 576, y: 144 },
+          { type: 'coin', x: 400, y: 256 },
+          { type: 'spike', x: 192, y: 304 },
+          { type: 'spike', x: 416, y: 368 },
+          { type: 'enemy', subtype: 'fly', x: 300, y: 200 },
+          { type: 'enemy', subtype: 'patrol', x: 500, y: 296 },
+          { type: 'checkpoint', x: 400, y: 288 },
+          { type: 'goal', x: 700, y: 272 }
+        ],
+        spawn: { x: 64, y: 288 },
+        bg: '#2C1810'
+      },
+      {
+        name: "Sky Kingdom",
+        tiles: [
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2],
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2],
+          [2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ],
+        entities: [
+          { type: 'coin', x: 160, y: 112 },
+          { type: 'coin', x: 320, y: 224 },
+          { type: 'coin', x: 420, y: 304 },
+          { type: 'coin', x: 640, y: 224 },
+          { type: 'coin', x: 750, y: 176 },
+          { type: 'enemy', subtype: 'fly', x: 250, y: 150 },
+          { type: 'enemy', subtype: 'fly', x: 500, y: 200 },
+          { type: 'checkpoint', x: 450, y: 320 },
+          { type: 'goal', x: 900, y: 336 }
+        ],
+        spawn: { x: 32, y: 384 },
+        bg: '#ADD8E6'
+      },
+      {
+        name: "Lava Ruins",
+        tiles: [
+          [3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,3,3,0,0,0,0,0,0,0,0,0,3,3,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,3,3,3,3,0,0,0,0,0,0,0,0,0,0,3],
+          [3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3],
+          [3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3],
+          [3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3,3,3],
+          [3,3,3,3,3,3,3,3,3,3,3,0,0,0,3,3,3,3,3,3,3,3,3,3,3],
+          [3,3,3,3,3,3,3,3,3,3,3,0,0,0,3,3,3,3,3,3,3,3,3,3,3],
+          [3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]
+        ],
+        entities: [
+          { type: 'coin', x: 96, y: 96 },
+          { type: 'coin', x: 256, y: 160 },
+          { type: 'coin', x: 400, y: 224 },
+          { type: 'coin', x: 550, y: 160 },
+          { type: 'spike', x: 128, y: 368 },
+          { type: 'spike', x: 256, y: 368 },
+          { type: 'spike', x: 352, y: 368 },
+          { type: 'enemy', subtype: 'fly', x: 200, y: 150 },
+          { type: 'enemy', subtype: 'patrol', x: 450, y: 296 },
+          { type: 'enemy', subtype: 'fly', x: 600, y: 200 },
+          { type: 'checkpoint', x: 350, y: 352 },
+          { type: 'goal', x: 380, y: 336 }
+        ],
+        spawn: { x: 64, y: 96 },
+        bg: '#8B0000'
+      },
+      {
+        name: "Final Castle",
+        tiles: [
+          [3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,3,3,0,0,0,0,3,3,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+          [3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3],
+          [3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3],
+          [3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,3,3,3,3,3,3,3,3,3,3,3,3],
+          [3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,3,3,3,3,3,3,3,3,3,3,3,3],
+          [3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]
+        ],
+        entities: [
+          { type: 'coin', x: 96, y: 96 },
+          { type: 'coin', x: 224, y: 160 },
+          { type: 'coin', x: 352, y: 224 },
+          { type: 'coin', x: 480, y: 224 },
+          { type: 'coin', x: 640, y: 160 },
+          { type: 'coin', x: 800, y: 96 },
+          { type: 'spike', x: 128, y: 368 },
+          { type: 'spike', x: 320, y: 368 },
+          { type: 'spike', x: 512, y: 368 },
+          { type: 'spike', x: 704, y: 368 },
+          { type: 'enemy', subtype: 'patrol', x: 200, y: 168 },
+          { type: 'enemy', subtype: 'fly', x: 350, y: 150 },
+          { type: 'enemy', subtype: 'patrol', x: 550, y: 168 },
+          { type: 'enemy', subtype: 'fly', x: 700, y: 200 },
+          { type: 'checkpoint', x: 300, y: 352 },
+          { type: 'checkpoint', x: 650, y: 352 },
+          { type: 'goal', x: 480, y: 336 }
+        ],
+        spawn: { x: 64, y: 96 },
+        bg: '#4B0082'
+      }
+    ];
+
+    // ===== GAME FUNCTIONS =====
+    function initGame() {
+      canvas = document.getElementById('gameCanvas');
+      ctx = canvas.getContext('2d');
+
+      canvas.width = CONFIG.CANVAS_WIDTH;
+      canvas.height = CONFIG.CANVAS_HEIGHT;
+
+      spriteAtlas = createSpriteAtlas();
+
+      // Input handlers
+      window.addEventListener('keydown', (e) => {
+        keys[e.key] = true;
+        if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+          if (gameState === 'playing') pauseGame();
+          else if (gameState === 'paused') resumeGame();
+        }
+        if (e.key === 'r' || e.key === 'R') {
+          if (gameState === 'playing' || gameState === 'paused') restartLevel();
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        keys[e.key] = false;
+      });
+
+      // Mobile controls
+      const setupTouchControl = (id, key) => {
+        const btn = document.getElementById(id);
+        btn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          touchControls[key] = true;
+        });
+        btn.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          touchControls[key] = false;
+        });
+      };
+
+      setupTouchControl('btnLeft', 'left');
+      setupTouchControl('btnRight', 'right');
+      setupTouchControl('btnJump', 'jump');
+
+      buildLevelSelect();
+      gameLoop();
+    }
+
+    function buildLevelSelect() {
+      const container = document.getElementById('levelSelect');
+      container.innerHTML = '';
+
+      LEVELS.forEach((level, index) => {
+        const card = document.createElement('div');
+        card.className = 'level-card';
+        card.innerHTML = `
+          <h3>${index + 1}. ${level.name}</h3>
+          <div class="stars">★★★</div>
+        `;
+        card.onclick = () => startLevel(index);
+        container.appendChild(card);
+      });
+    }
+
+    function startLevel(index) {
+      currentLevel = index;
+      const level = LEVELS[index];
+
+      // Initialize entities
+      entities = [];
+      particles = [];
+
+      level.entities.forEach(def => {
+        switch (def.type) {
+          case 'coin':
+            entities.push(new Coin(def.x, def.y));
+            break;
+          case 'enemy':
+            entities.push(new Enemy(def.x, def.y, def.subtype === 'patrol' ? 32 : 24, def.subtype === 'patrol' ? 24 : 24, def.subtype));
+            break;
+          case 'spike':
+            entities.push(new Spike(def.x, def.y));
+            break;
+          case 'checkpoint':
+            entities.push(new Checkpoint(def.x, def.y));
+            break;
+          case 'goal':
+            entities.push(new Goal(def.x, def.y));
+            break;
+        }
+      });
+
+      // Initialize player
+      player = new Player(level.spawn.x, level.spawn.y);
+      camera = new Camera();
+
+      gameStats.coins = 0;
+      gameStats.time = 0;
+
+      hideAllScreens();
+      document.getElementById('hud').style.display = 'flex';
+      gameState = 'playing';
+      lastTime = performance.now();
+    }
+
+    function resetLevel() {
+      startLevel(currentLevel);
+    }
+
+    function restartLevel() {
+      gameStats.lives = 3;
+      resetLevel();
+    }
+
+    function nextLevel() {
+      if (currentLevel < LEVELS.length - 1) {
+        startLevel(currentLevel + 1);
+      } else {
+        showLevelSelect();
+      }
+    }
+
+    function pauseGame() {
+      gameState = 'paused';
+      showScreen('pauseScreen');
+    }
+
+    function resumeGame() {
+      gameState = 'playing';
+      hideAllScreens();
+      lastTime = performance.now();
+    }
+
+    function gameOver() {
+      gameState = 'gameover';
+      showScreen('gameOverScreen');
+    }
+
+    function levelComplete() {
+      gameState = 'levelcomplete';
+      playSound('goal');
+
+      const stats = document.getElementById('stats');
+      const minutes = Math.floor(gameStats.time / 60);
+      const seconds = Math.floor(gameStats.time % 60);
+      stats.innerHTML = `
+        <div class="stat-row">⏱️ Time: ${minutes}:${seconds.toString().padStart(2, '0')}</div>
+        <div class="stat-row">🪙 Coins: ${gameStats.coins}</div>
+        <div class="stat-row">❤️ Lives: ${gameStats.lives}</div>
+      `;
+
+      showScreen('levelCompleteScreen');
+    }
+
+    function showTitle() {
+      gameState = 'title';
+      hideAllScreens();
+      showScreen('titleScreen');
+      document.getElementById('hud').style.display = 'none';
+    }
+
+    function showLevelSelect() {
+      gameState = 'levelselect';
+      hideAllScreens();
+      showScreen('levelSelectScreen');
+      document.getElementById('hud').style.display = 'none';
+    }
+
+    function quitToMenu() {
+      showLevelSelect();
+    }
+
+    function showScreen(id) {
+      document.getElementById(id).classList.remove('hidden');
+      document.getElementById(id).classList.add('active');
+    }
+
+    function hideAllScreens() {
+      document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+        screen.classList.add('hidden');
+      });
+    }
+
+    function update(dt) {
+      if (gameState !== 'playing') return;
+
+      gameStats.time += dt;
+
+      // Update player
+      if (player) {
+        player.update(dt);
+      }
+
+      // Update entities
+      entities.forEach(entity => {
+        entity.update(dt);
+
+        // Check collisions with player
+        if (player && entity.collidesWith(player)) {
+          if (entity instanceof Coin && !entity.collected) {
+            entity.collected = true;
+            gameStats.coins++;
+            playSound('coin');
+            createParticles(entity.x + entity.w / 2, entity.y + entity.h / 2, 8, '#FFD700');
+          } else if (entity instanceof Enemy) {
+            player.hit();
+          } else if (entity instanceof Spike) {
+            player.hit();
+          } else if (entity instanceof Checkpoint && !entity.activated) {
+            entity.activated = true;
+            LEVELS[currentLevel].spawn = { x: entity.x, y: entity.y };
+            playSound('checkpoint');
+            createParticles(entity.x + entity.w / 2, entity.y + entity.h / 2, 15, '#4CAF50');
+          } else if (entity instanceof Goal) {
+            levelComplete();
+          }
+        }
+      });
+
+      // Update particles
+      particles = particles.filter(p => {
+        p.update(dt);
+        return p.life > 0;
+      });
+
+      // Update camera
+      if (camera) {
+        camera.update();
+      }
+
+      // Update HUD
+      document.getElementById('lives').textContent = gameStats.lives;
+      document.getElementById('coins').textContent = gameStats.coins;
+      const minutes = Math.floor(gameStats.time / 60);
+      const seconds = Math.floor(gameStats.time % 60);
+      document.getElementById('timer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function render() {
+      // Clear canvas
+      ctx.clearRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+
+      // Background
+      const level = LEVELS[currentLevel];
+      if (level) {
+        ctx.fillStyle = level.bg;
+        ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+      }
+
+      if (gameState !== 'playing' && gameState !== 'paused') return;
+
+      ctx.save();
+      ctx.translate(-Math.floor(camera.x), -Math.floor(camera.y));
+
+      // Render tiles
+      if (level) {
+        const tiles = level.tiles;
+        const startCol = Math.floor(camera.x / CONFIG.TILE_SIZE);
+        const endCol = Math.ceil((camera.x + CONFIG.CANVAS_WIDTH) / CONFIG.TILE_SIZE);
+        const startRow = Math.floor(camera.y / CONFIG.TILE_SIZE);
+        const endRow = Math.ceil((camera.y + CONFIG.CANVAS_HEIGHT) / CONFIG.TILE_SIZE);
+
+        for (let row = startRow; row < endRow && row < tiles.length; row++) {
+          for (let col = startCol; col < endCol && col < tiles[row].length; col++) {
+            if (tiles[row][col] > 0) {
+              const tileType = tiles[row][col];
+              let sx = 0;
+              if (tileType === 2) sx = 40; // Grass
+              if (tileType === 3) sx = 80; // Stone
+
+              ctx.drawImage(
+                spriteAtlas,
+                sx, 160, 32, 32,
+                col * CONFIG.TILE_SIZE,
+                row * CONFIG.TILE_SIZE,
+                CONFIG.TILE_SIZE,
+                CONFIG.TILE_SIZE
+              );
+            }
+          }
+        }
+      }
+
+      // Render entities
+      entities.forEach(entity => entity.render());
+
+      // Render particles
+      particles.forEach(particle => particle.render());
+
+      // Render player
+      if (player) {
+        player.render();
+      }
+
+      ctx.restore();
+    }
+
+    function gameLoop(timestamp) {
+      const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+      lastTime = timestamp;
+
+      update(dt);
+      render();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Start game when page loads
+    window.addEventListener('load', initGame);
+  </script>
+</body>
+</html>
